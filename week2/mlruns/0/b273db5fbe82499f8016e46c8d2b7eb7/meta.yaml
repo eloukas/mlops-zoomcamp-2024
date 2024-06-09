@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/kaslou/Desktop/code/mlops-zoomcamp-2024/week2/mlruns/0/b273db5fbe82499f8016e46c8d2b7eb7/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: b273db5fbe82499f8016e46c8d2b7eb7
+run_name: beautiful-eel-223
+run_uuid: b273db5fbe82499f8016e46c8d2b7eb7
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1717005321916
+status: 1
+tags: []
+user_id: kaslou
