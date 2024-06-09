@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/kaslou/Desktop/code/mlops-zoomcamp-2024/week2/mlruns/0/08a1ce17be9b4f3c97e32a42e63f66ec/artifacts
+end_time: 1717005767959
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 08a1ce17be9b4f3c97e32a42e63f66ec
+run_name: melodic-smelt-896
+run_uuid: 08a1ce17be9b4f3c97e32a42e63f66ec
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1717005753847
+status: 3
+tags: []
+user_id: kaslou
