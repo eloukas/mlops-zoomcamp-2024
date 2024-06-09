@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework 3 Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Homework 3 Report</h1>
+
+        <h2>Overview</h2>
+        <p>This report details the steps taken to complete Homework 3, which involves creating a data pipeline using Mage, preparing data, and training a machine learning model.</p>
+
+        <h2>Steps and Screenshots</h2>
+
+        <h3>Step 1: Setup Docker and Mage</h3>
+        <p>I started Docker Desktop and then, in PowerShell (Windows terminal), I ran the following command to start Mage:</p>
+        <pre><code>docker run -it -p 6789:6789 -v ${PWD}:/home/src mageai/mageai /app/run_app.sh mage start mlops-hw3</code></pre>
+        <p>Mage version used: <strong>v0.9.71</strong></p>
+        <p><strong>Screenshot:</strong></p>
+        <img src="images/mlops-hw3-1-mage-version.png" alt="Mage Version">
+
+        <h3>Step 2: Create a New Project</h3>
+        <ol>
+            <li>I navigated to <code>localhost:6789</code> and opened the Text Editor.</li>
+            <li>Right-clicked on the file explorer and selected “New Mage Project”.</li>
+            <li>Created a new project named <code>homework_03</code>.</li>
+        </ol>
+        <p><strong>Screenshots:</strong></p>
+        <img src="images/mlops-hw3-2-mage-new-project.png" alt="New Project">
+        <img src="images/mlops-hw3-2-mage-new-project-name-creation.png" alt="New Project Name">
+        <img src="images/mlops-hw3-2-mage-new-project-created-metadata-is-55-lines.png" alt="Metadata">
+
+        <h3>Step 3: Create a Pipeline</h3>
+        <p>I created a pipeline for the project <code>homework_03</code>.</p>
+        <p><strong>Screenshot:</strong></p>
+        <img src="images/mlops-hw3-3-created-a-pipeline-for-the-project.png" alt="Pipeline Creation">
+
+        <h3>Step 4: Ingest Data</h3>
+        <p>I created a data loader block named <code>Ingest</code> to read the March 2023 Yellow taxi trips data.</p>
+        <pre><code>import requests
+from io import BytesIO
+from typing import List
+import pandas as pd
+
+if 'data_loader' not in globals():
+    from mage_ai.data_preparation.decorators import data_loader
+
+@data_loader
+def ingest_files(**kwargs) -> pd.DataFrame:
+    dataset_trips_2023_march = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-03.parquet"
+    response = requests.get(dataset_trips_2023_march)
+    
+    if response.status_code != 200:
+        raise Exception(response.text)
+    
+    df = pd.read_parquet(BytesIO(response.content))
+    return df
+</code></pre>
+        <p><strong>Screenshots:</strong></p>
+        <img src="images/mlops-hw3-3-created-an-ingestion-building-block.png" alt="Ingestion Block">
+        <img src="images/mlops-hw3-3-created-an-ingestion-data-loader-building-block.png" alt="Data Loader Block">
+
+        <h3>Step 5: Data Preparation</h3>
+        <p>I created a transformer block for data preparation with the previous block as its parent. The transformation includes calculating the trip duration and converting categorical columns to string type.</p>
+        <pre><code>import pandas as pd
+
+@transformer
+def transform_dataframe(df):
+    df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
+    df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
+    df['duration'] = (df.tpep_dropoff_datetime - df.tpep_pickup_datetime).dt.total_seconds() / 60
+    df = df[(df.duration >= 1) & (df.duration < 60)]
+    categorical = ['PULocationID', 'DOLocationID']
+    df[categorical] = df[categorical].astype(str)
+    return df
+</code></pre>
+        <p><strong>Screenshots:</strong></p>
+        <img src="images/mlops-hw3-4-creating_a_new_transformer_block.png" alt="Transformer Block">
+        <img src="images/mlops-hw3-4-transform_the_data_and_analyze_them.png" alt="Data Transformation">
+
+        <h3>Step 6: Train a Linear Regression Model</h3>
+        <p>I created another transformer block to train a linear regression model. The model uses pickup and dropoff locations as features and trip duration as the target.</p>
+        <pre><code>import pandas as pd
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.linear_model import LinearRegression
+
+@transformer
+def transform(df):
+    categorical_columns = ['PULocationID', 'DOLocationID']
+    target = 'duration'
+    
+    for col in categorical_columns:
+        df[col] = df[col].astype('category')
+    
+    X = df[categorical_columns]
+    y = df[target]
+    
+    dv = DictVectorizer(sparse=True)
+    X_train = dv.fit_transform(X.to_dict(orient='records'))
+    
+    lr = LinearRegression()
+    lr.fit(X_train, y)
+    
+    print("Intercept:", lr.intercept_)
+    return dv, lr
+</code></pre>
+        <p><strong>Screenshots:</strong></p>
+        <img src="images/mlops-hw3-5-creating_a_new_transformer_block_for_training_the_model.png" alt="Train Model Block">
+
+        <h2>Results</h2>
+        <p>The intercept of the linear regression model is <strong>24.77</strong>.</p>
+        <p>This completes the steps and outputs for Homework 3. The pipeline successfully ingests, transforms the data, and trains a linear regression model.</p>
+    </div>
+</body>
+</html>
