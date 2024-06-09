@@ -1,0 +1,121 @@
+blocks:
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    file_source:
+      path: homework_03/data_loaders/ingest.py
+  downstream_blocks:
+  - preparation_for_nyc_yellow_taxi_data
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: Ingest
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_loader
+  upstream_blocks: []
+  uuid: ingest
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    file_source:
+      path: homework_03/transformers/preparation_for_nyc_yellow_taxi_data.py
+  downstream_blocks:
+  - summary_overview_for_preparation_for_nyc_yellow_taxi_data
+  - train_model
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: preparation_for_nyc_yellow_taxi_data
+  retry_config: null
+  status: executed
+  timeout: null
+  type: transformer
+  upstream_blocks:
+  - ingest
+  uuid: preparation_for_nyc_yellow_taxi_data
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    file_source:
+      path: homework_03/transformers/train_model.py
+  downstream_blocks:
+  - export_model
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: train_model
+  retry_config: null
+  status: updated
+  timeout: null
+  type: transformer
+  upstream_blocks:
+  - preparation_for_nyc_yellow_taxi_data
+  uuid: train_model
+- all_upstream_blocks_executed: false
+  color: null
+  configuration:
+    file_source:
+      path: homework_03/data_exporters/export_model.py
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: export_model
+  retry_config: null
+  status: updated
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - train_model
+  uuid: export_model
+cache_block_output_in_memory: false
+callbacks: []
+concurrency_config: {}
+conditionals: []
+created_at: '2024-06-08 13:50:46.183828+00:00'
+data_integration: null
+description: null
+executor_config: {}
+executor_count: 1
+executor_type: null
+extensions: {}
+name: mlops-hw3-homework_03-pipeline
+notification_config: {}
+remote_variables_dir: null
+retry_config: {}
+run_pipeline_in_one_process: false
+settings:
+  triggers: null
+spark_config: {}
+tags: []
+type: python
+uuid: mlops_hw3_homework_03_pipeline
+variables_dir: /home/src/mage_data/homework_03
+widgets:
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    chart_type: table
+    height: 3000
+    index: stats
+    x: headers
+    y: rows
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: summary overview for preparation_for_nyc_yellow_taxi_data
+  retry_config: null
+  status: executed
+  timeout: null
+  type: chart
+  upstream_blocks:
+  - preparation_for_nyc_yellow_taxi_data
+  uuid: summary_overview_for_preparation_for_nyc_yellow_taxi_data

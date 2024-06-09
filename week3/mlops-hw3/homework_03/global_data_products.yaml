@@ -1,0 +1,5 @@
+training_set:
+  object_type: pipeline
+  object_uuid: mlops_hw3_homework_03_pipeline
+  project: homework_03
+  repo_path: /home/src/mlops-hw3/homework_03
