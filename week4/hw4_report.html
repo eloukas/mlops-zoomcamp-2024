@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Predicting Taxi Trip Durations: A Dockerized ML Pipeline</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+      .container {
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 20px;
+        background: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      h1,
+      h2,
+      h3 {
+        color: #333;
+      }
+      code,
+      pre {
+        background: #f4f4f4;
+        border: 1px solid #ddd;
+        padding: 5px;
+        border-radius: 5px;
+      }
+      pre {
+        overflow: auto;
+      }
+      .output {
+        background: #e8f4f8;
+        border-left: 4px solid #007bff;
+        padding: 10px;
+        margin: 20px 0;
+      }
+      .warning {
+        background: #fff3cd;
+        border-left: 4px solid #ffecb5;
+        padding: 10px;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Predicting Taxi Trip Durations: A Dockerized ML Pipeline</h1>
+
+      <h2>Introduction</h2>
+      <p>
+        In this blog post, we will walk through a machine learning pipeline
+        designed to predict taxi trip durations. The pipeline involves creating
+        a virtual environment, parameterizing scripts, and packaging everything
+        into a Docker container for efficient deployment.
+      </p>
+
+      <h2>Step 1: Checking Installed Packages</h2>
+      <pre><code>import os
+import sys
+
+if os.name == "nt":  # For Windows
+    !pip freeze | findstr scikit-learn
+else:  # For Linux/macOS
+    !pip freeze | grep scikit-learn</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>scikit-learn==1.5.0</code></pre>
+      </div>
+
+      <h2>Step 2: Checking Python Version</h2>
+      <pre><code>!python -V</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>Python 3.9.0</code></pre>
+      </div>
+
+      <h2>Step 3: Importing Necessary Libraries</h2>
+      <pre><code>import pickle
+import pandas as pd</code></pre>
+
+      <h2>Step 4: Loading the Model</h2>
+      <pre><code>with open("model.bin", "rb") as f_in:
+    dv, model = pickle.load(f_in)</code></pre>
+
+      <div class="warning">
+        <p>Warning:</p>
+        <p>
+          InconsistentVersionWarning: Trying to unpickle estimator
+          DictVectorizer from version 1.5.0 when using version 1.4.2. This might
+          lead to breaking code or invalid results.
+        </p>
+      </div>
+
+      <h2>Step 5: Defining a Function to Read Data</h2>
+      <pre><code>categorical = ["PULocationID", "DOLocationID"]
+
+def read_data(filename):
+    df = pd.read_parquet(filename)
+    df["duration"] = df.tpep_dropoff_datetime - df.tpep_pickup_datetime
+    df["duration"] = df.duration.dt.total_seconds() / 60
+    df = df[(df.duration >= 1) & (df.duration <= 60)].copy()
+    df[categorical] = df[categorical].fillna(-1).astype("int").astype("str")
+    return df</code></pre>
+
+      <h2>Step 6: Reading Data for March 2023</h2>
+      <pre><code>url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-03.parquet"
+df = read_data(url)</code></pre>
+
+      <h2>Step 7: Making Predictions</h2>
+      <pre><code>dicts = df[categorical].to_dict(orient="records")
+X_val = dv.transform(dicts)
+y_pred = model.predict(X_val)</code></pre>
+
+      <h2>Q1. Notebook (Question 1)</h2>
+      <p>Run this notebook for the March 2023 data.</p>
+      <p>
+        What's the standard deviation of the predicted duration for this
+        dataset?
+      </p>
+      <ul>
+        <li>1.24</li>
+        <li>6.24</li>
+        <li>12.28</li>
+        <li>18.28</li>
+      </ul>
+
+      <pre><code># Find the standard deviation of the predicted duration
+predicted_duration_std = y_pred.std()
+print(f" The standard deviation of the predicted duration is {predicted_duration_std:.2f} minutes")</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>The standard deviation of the predicted duration is 6.25 minutes</code></pre>
+      </div>
+
+      <h2>Q2. Preparing the Output</h2>
+      <p>
+        We want to prepare the dataframe with the output. Let's create an
+        artificial ride_id column:
+      </p>
+      <pre><code>df['ride_id'] = f'{year:04d}/{month:02d}_' + df.index.astype('str')</code></pre>
+      <p>
+        Next, write the ride id and the predictions to a dataframe with results.
+      </p>
+      <pre><code>df_result.to_parquet(output_file, engine='pyarrow', compression=None, index=False)</code></pre>
+
+      <h2>What's the size of the output file?</h2>
+      <ul>
+        <li>36M</li>
+        <li>46M</li>
+        <li>56M</li>
+        <li>66M</li>
+      </ul>
+
+      <pre><code># Create an artificial ride_id column
+year = 2023
+month = 3
+df["ride_id"] = f"{year:04d}/{month:02d}_" + df.index.astype("str")
+# Write the ride id and the predictions to a dataframe with results.
+results = pd.DataFrame({"ride_id": df["ride_id"], "predicted_duration": y_pred})
+print(results.head())</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>ride_id  predicted_duration
+0  2023/03_0           16.245906
+1  2023/03_1           26.134796
+2  2023/03_2           11.884264
+3  2023/03_3           11.997720
+4  2023/03_4           10.234486</code></pre>
+      </div>
+
+      <pre><code># Save it as parquet file
+output_file = f"{year:04d}-{month:02d}-predictions.parquet"
+results.to_parquet(output_file, engine="pyarrow", compression=None, index=False)
+print(f"Predictions saved to {output_file}")</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>Predictions saved to 2023-03-predictions.parquet</code></pre>
+      </div>
+
+      <pre><code># Check the size of the saved file
+file_size = os.path.getsize(output_file) / (1024 * 1024)
+print(f"Size of the saved file is {file_size:.2f} MB")</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>Size of the saved file is 65.46 MB</code></pre>
+      </div>
+
+      <h2>Q3. Creating the Scoring Script</h2>
+      <p>Now let's turn the notebook into a script.</p>
+      <pre><code># Convert the notebook to a script using jupyter nbconvert
+!jupyter nbconvert --to script --output-dir . starter.ipynb
+
+# List the files in the current directory
+if os.name == "nt":
+    !dir
+else:
+    !ls -l</code></pre>
+
+      <div class="output">
+        <p>Output:</p>
+        <pre><code>[NbConvertApp] Converting notebook starter.ipynb to script
+[NbConvertApp] Writing 3572 bytes to starter.py</code></pre>
+      </div>
+
+      <h2>Q4. Virtual Environment</h2>
+      <p>Let's put everything into a virtual environment using pipenv.</p>
+      <p>
+        Install all the required libraries. Pay attention to the Scikit-Learn
+        version: it should be the same as in the starter notebook.
+      </p>
+      <p>
+        After installing the libraries, pipenv creates two files:
+        <code>Pipfile</code> and <code>Pipfile.lock</code>. The Pipfile.lock
+        file keeps the hashes of the dependencies we use for the virtual env.
+      </p>
+      <p>
+        <strong>Question:</strong> What's the first hash for the Scikit-Learn
+        dependency?
+      </p>
+
+      <pre><code># The first hash is "sha256:057b991ac64b3e75c9c04b5f9395eaf19a6179244c089afdebaad98264bff37c"</code></pre>
+
+      <h2>Q5. Parametrize the Script</h2>
+      <p>
+        Let's make the script configurable via CLI. We'll create two parameters:
+        year and month.
+      </p>
+      <p>Run the script for April 2023.</p>
+      <p>What's the mean predicted duration?</p>
+      <ul>
+        <li>7.29</li>
+        <li>14.29</li>
+        <li>21.29</li>
+        <li>28.29</li>
+      </ul>
+      <p>Hint: just add a print statement to your script.</p>
+
+      <pre><code># For that, I switch to the starter.py script. Refer to it to see the changes.
+# The mean predicted duration for 2023-04 is 14.29 minutes
+# Predictions saved to 2023-04-predictions.parquet
+
+# So, the answer is option B, 14.29</code></pre>
+
+      <h2>Q6. Docker Container</h2>
+      <p>
+        Finally, we'll package the script in the Docker container. For that,
+        you'll need to use a base image that we prepared.
+      </p>
+      <p>This is what the content of this image is:</p>
+      <pre><code>FROM python:3.10.13-slim
+WORKDIR /app
+COPY ["model2.bin", "model.bin"]</code></pre>
+      <p>Note: you don't need to run it. We have already done it.</p>
+      <p>
+        It is pushed to
+        <a
+          href="https://hub.docker.com/layers/agrigorev/zoomcamp-model/mlops-2024-3.10.13-slim/images/sha256-f54535b73a8c3ef91967d5588de57d4e251b22addcbbfb6e71304a91c1c7027f?context=repo"
+          target="_blank"
+          >agrigorev/zoomcamp-model:mlops-2024-3.10.13-slim</a
+        >, which you need to use as your base image.
+      </p>
+      <p>That is, your Dockerfile should start with:</p>
+      <pre><code>FROM agrigorev/zoomcamp-model:mlops-2024-3.10.13-slim
+
+# do stuff here</code></pre>
+      <p>
+        This image already has a pickle file with a dictionary vectorizer and a
+        model. You will need to use them. Important: don't copy the model to the
+        docker image. You will need to use the pickle file already in the image.
+      </p>
+      <p>
+        Now run the script with Docker. What's the mean predicted duration for
+        May 2023?
+      </p>
+      <ul>
+        <li>0.19</li>
+        <li>7.24</li>
+        <li>14.24</li>
+        <li>21.19</li>
+      </ul>
+
+      <h2>Bonus: Upload the Result to the Cloud (Not Graded)</h2>
+      <p>
+        Just printing the mean duration inside the Docker image doesn't seem
+        very practical. Typically, after creating the output file, we upload it
+        to the cloud storage. Modify your code to upload the parquet file to
+        S3/GCS/etc.
+      </p>
+
+      <h2>Publishing the Image to Docker Hub</h2>
+      <p>This is how we published the image to Docker Hub:</p>
+      <pre><code>docker build -t mlops-zoomcamp-model:2024-3.10.13-slim .
+docker tag mlops-zoomcamp-model:2024-3.10.13-slim agrigorev/zoomcamp-model:mlops-2024-3.10.13-slim
+
+docker login --username USERNAME
+docker push agrigorev/zoomcamp-model:mlops-2024-3.10.13-slim</code></pre>
+
+      <h2>Inference with Docker</h2>
+      <pre><code># I created the inference.dockerfile file.
+# Then, I built the docker image using the following command:
+# docker build -t ride-duration-pred-service:v1 -f week4/inference.dockerfile .
+
+# I ran the docker container using the following command:
+# docker run -it --rm ride-duration-pred-service:v1 --year 2023 --month 5
+
+# (mlops-zoomcamp-2024-ZOLEji97) C:\Users\kaslou\Desktop\code\mlops-zoomcamp-2024>docker run -it --rm ride-duration-pred-service:v1 --year 2023 --month 5
+# The mean predicted duration for 2023-05 is 0.19 minutes
+# Predictions saved to 2023-05-predictions.parquet</code></pre>
+
+      <p>
+        Thank you for following along with this walkthrough. Stay tuned for more
+        posts on machine learning and MLOps!
+      </p>
+    </div>
+  </body>
+</html>
