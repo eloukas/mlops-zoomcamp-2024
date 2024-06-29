@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseline Model for Batch Monitoring Example</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        h1, h2, h3 {
+            color: #007bff;
+        }
+        code, pre {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            display: block;
+            overflow-x: auto;
+        }
+        blockquote {
+            background-color: #e9ecef;
+            border-left: 5px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Baseline Model for Batch Monitoring Example</h1>
+
+        <h2>Q1. Prepare the Dataset</h2>
+        <blockquote>
+            <p>Start with <code>baseline_model_nyc_taxi_data.ipynb</code>. Download the March 2024 Green Taxi data. We will use this data to simulate a production usage of a taxi trip duration prediction service.</p>
+        </blockquote>
+        <p>Let's begin by downloading the March 2024 Green Taxi data. The shape of the downloaded data is <strong>(57457, 20)</strong>, indicating 57457 rows.</p>
+        <pre><code>
+import requests
+import pandas as pd
+from tqdm import tqdm
+
+# Download data
+files = [("green_tripdata_2024-03.parquet", "./data")]
+
+for file, path in files:
+    url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/{file}"
+    resp = requests.get(url, stream=True)
+    save_path = f"{path}/{file}"
+    with open(save_path, "wb") as handle:
+        for data in tqdm(resp.iter_content(), desc=f"{file}", total=int(resp.headers["Content-Length"])):
+            handle.write(data)
+
+# Load data
+march_data_2024 = pd.read_parquet("data/green_tripdata_2024-03.parquet")
+march_data_2024.describe()
+        </code></pre>
+        <p><strong>Solution:</strong> The shape is (57457, 20), so there are 57457 rows in the downloaded data.</p>
+
+        <h2>Q2. Metric</h2>
+        <blockquote>
+            <p>Let's expand the number of data quality metrics we’d like to monitor! Please add one metric of your choice and a quantile value for the "fare_amount" column (quantile=0.5).</p>
+            <p><strong>Hint:</strong> Explore Evidently metric <code>ColumnQuantileMetric</code> (from <code>evidently.metrics</code> import <code>ColumnQuantileMetric</code>).</p>
+        </blockquote>
+        <p>We chose to analyze the <code>fare_amount</code> metric in quantiles, and we also chose the summary of the <code>trip_distance</code> metric.</p>
+        <pre><code>
+from evidently import ColumnMapping
+from evidently.report import Report
+from evidently.metrics import (
+    ColumnDriftMetric,
+    DatasetDriftMetric,
+    DatasetMissingValuesMetric,
+    ColumnQuantileMetric,
+    ColumnSummaryMetric,
+)
+
+# Define column mapping
+column_mapping = ColumnMapping(
+    target=None,
+    prediction="prediction",
+    numerical_features=num_features,
+    categorical_features=cat_features,
+)
+
+# Create and run report
+report = Report(
+    metrics=[
+        ColumnDriftMetric(column_name="prediction"),
+        DatasetDriftMetric(),
+        DatasetMissingValuesMetric(),
+        ColumnQuantileMetric(column_name="fare_amount", quantile=0.5),
+        ColumnSummaryMetric(column_name="trip_distance"),
+    ]
+)
+report.run(reference_data=train_data, current_data=val_data, column_mapping=column_mapping)
+report.show(mode="inline")
+        </code></pre>
+
+        <h2>Q3. Monitoring</h2>
+        <blockquote>
+            <p>Let’s start monitoring. Run expanded monitoring for a new batch of data (March 2024).</p>
+        </blockquote>
+        <p>We will now run expanded monitoring for a new batch of data to find the maximum value of the metric quantile = 0.5 on the "fare_amount" column during March 2024 (calculated daily).</p>
+        <pre><code>
+# Let's get the whole dataset
+march_data_2024 = pd.read_parquet("data/green_tripdata_2024-03.parquet")
+
+# Now, let's see the maximum value of the metric quantile 0.5 for the column fare_amount
+report2 = Report(
+    metrics=[
+        ColumnQuantileMetric(column_name="fare_amount", quantile=0.5),
+    ]
+)
+
+# Run the report
+report2.run(
+    reference_data=None,
+    current_data=march_data_2024.loc[
+        march_data_2024.lpep_pickup_datetime.between(
+            "2024-03-30", "2024-03-31", inclusive="left"
+        )  #
+    ],
+    column_mapping=column_mapping,
+)
+
+# Show the report
+report2.show(mode="inline")
+        </code></pre>
+        <p><strong>Solution:</strong> The maximum value is 14.2 (option C).</p>
+
+        <h2>Q4. Dashboard</h2>
+        <blockquote>
+            <p>Finally, let’s add panels with new added metrics to the dashboard. After we customize the dashboard let's save a dashboard config, so that we can access it later.</p>
+            <p><strong>Hint:</strong> Click on “Save dashboard” to access JSON configuration of the dashboard. This configuration should be saved locally.</p>
+        </blockquote>
+        <p>We set up the dashboard and found the solution to be <strong>project_folder/dashboards</strong>.</p>
+        <pre><code>
+from evidently.metric_preset import DataDriftPreset, DataQualityPreset
+from evidently.ui.workspace import Workspace
+from evidently.ui.dashboards import (
+    DashboardPanelCounter,
+    DashboardPanelPlot,
+    CounterAgg,
+    PanelValue,
+    PlotType,
+    ReportFilter,
+)
+from evidently.renderers.html_widgets import WidgetSize
+
+# Create workspace and project
+ws = Workspace("workspace")
+project = ws.create_project("NYC Taxi Data Quality Project")
+project.description = "My project description"
+project.save()
+
+# Add report to workspace
+ws.add_report(project.id, report)
+
+# Configure dashboard
+project.dashboard.add_panel(
+    DashboardPanelCounter(
+        filter=ReportFilter(metadata_values={}, tag_values=[]),
+        agg=CounterAgg.NONE,
+        title="NYC taxi data dashboard",
+    )
+)
+project.dashboard.add_panel(
+    DashboardPanelPlot(
+        filter=ReportFilter(metadata_values={}, tag_values=[]),
+        title="Inference Count",
+        values=[
+            PanelValue(
+                metric_id="DatasetSummaryMetric",
+                field_path="current.number_of_rows",
+                legend="count",
+            ),
+        ],
+        plot_type=PlotType.BAR,
+        size=WidgetSize.HALF,
+    )
+)
+project.dashboard.add_panel(
+    DashboardPanelPlot(
+        filter=ReportFilter(metadata_values={}, tag_values=[]),
+        title="Number of Missing Values",
+        values=[
+            PanelValue(
+                metric_id="DatasetSummaryMetric",
+                field_path="current.number_of_missing_values",
+                legend="count",
+            ),
+        ],
+        plot_type=PlotType.LINE,
+        size=WidgetSize.HALF,
+    )
+)
+
+project.save()
+        </code></pre>
+
+        <h2>Conclusion</h2>
+        <p>This example demonstrates how to download and prepare data, train a model, evaluate its performance, and monitor data quality using Evidently. The process ensures that our model remains robust and accurate over time.</p>
+    </div>
+</body>
+</html>
